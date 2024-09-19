@@ -1,10 +1,10 @@
-use std::{
-    error::Error,
-    path::{Path, PathBuf},
-};
+use std::{error::Error, fs::File, io::Write, num::NonZeroU32, path::PathBuf};
 
 use clap::Parser;
-use ipa_core::{cli::playbook::InputSource, test_fixture::hybrid::{hybrid_in_the_clear, TestHybridRecord}};
+use ipa_core::{
+    cli::playbook::InputSource,
+    test_fixture::hybrid::{hybrid_in_the_clear, TestHybridRecord},
+};
 
 #[derive(Debug, Parser)]
 pub struct CommandInput {
@@ -26,7 +26,7 @@ impl From<&CommandInput> for InputSource {
 }
 
 #[derive(Debug, Parser)]
-#[clap(name = "rc", about = "Report Collector CLI")]
+#[clap(name = "in_the_clear", about = "In the Clear CLI")]
 #[command(about)]
 struct Args {
     #[clap(flatten)]
@@ -35,6 +35,9 @@ struct Args {
     /// The destination file for output.
     #[arg(long, value_name = "OUTPUT_FILE")]
     output_file: PathBuf,
+
+    #[arg(long, default_value = "20")]
+    max_breakdown_key: NonZeroU32,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -43,13 +46,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     let input = InputSource::from(&args.input);
 
     let input_rows = input.iter::<TestHybridRecord>().collect::<Vec<_>>();
-    let expected = hybrid_in_the_clear(&input_rows, 10);
+    let expected = hybrid_in_the_clear(
+        &input_rows,
+        usize::try_from(args.max_breakdown_key.get()).unwrap(),
+    );
 
     let mut file = File::options()
         .write(true)
         .create_new(true)
-        .open(args.output_file)
-        .map_err(|e| format!("Failed to create output file {}: {e}", args.output_file.display()))?;
+        .open(&args.output_file)
+        .map_err(|e| {
+            format!(
+                "Failed to create output file {}: {e}",
+                &args.output_file.display()
+            )
+        })?;
 
     write!(file, "{}", serde_json::to_string_pretty(&expected)?)?;
 

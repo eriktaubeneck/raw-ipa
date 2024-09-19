@@ -199,7 +199,7 @@ bench = false
 
 [[bin]]
 name = "in_the_clear"
-required-features = ["cli", "test-fixture"]
+required-features = ["cli", "test-fixture", "web-app"]
 bench = false
 
 [[bench]]

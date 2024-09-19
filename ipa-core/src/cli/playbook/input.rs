@@ -6,16 +6,10 @@ use std::{
     path::PathBuf,
 };
 
-use ipa_core::{
-    cli::playbook::InputSource,
-};
-
 use crate::{
-    cli::playbook::generator::U128Generator, ff::U128Conversions,
-    test_fixture::{
-        ipa::TestRawDataRecord,
-        hybrid::{hybrid_in_the_clear, TestHybridRecord},
-    }
+    cli::playbook::generator::U128Generator,
+    ff::U128Conversions,
+    test_fixture::{hybrid::TestHybridRecord, ipa::TestRawDataRecord},
 };
 
 pub trait InputItem {
@@ -66,18 +60,29 @@ impl InputItem for TestRawDataRecord {
 impl InputItem for TestHybridRecord {
     fn from_str(s: &str) -> Self {
         if let [event_type, match_key, number] = s.splitn(3, ',').collect::<Vec<_>>()[..] {
+            let match_key: u64 = match_key
+                .parse()
+                .unwrap_or_else(|e| panic!("Expected an u64, got {match_key}: {e}"));
+
+            let number: u32 = number
+                .parse()
+                .unwrap_or_else(|e| panic!("Expected an u32, got {number}: {e}"));
+
             match event_type {
-                'i' => TestHybridRecord::TestImpression {
+                "i" => TestHybridRecord::TestImpression {
                     match_key,
                     breakdown_key: number,
                 },
-                'c' => TestHybridRecord::TestImpression {
+
+                "c" => TestHybridRecord::TestConversion {
                     match_key,
                     value: number,
                 },
                 _ => panic!(
-                    "Invalid input. Rows should start with 'i' or 'c'. Did not expect {:?}",
-                    event_type
+                    "{}",
+                    format!(
+                    "Invalid input. Rows should start with 'i' or 'c'. Did not expect {event_type}"
+                )
                 ),
             }
         } else {
